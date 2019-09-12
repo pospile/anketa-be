@@ -22,6 +22,7 @@
     "@types/validator": "^10.11.3",
     "body-parser": "^1.19.0",
     "dotenv": "^8.1.0",
+    "express-session": "^1.16.2",
     "guid-typescript": "^1.0.9",
     "knex": "^0.19.4",
     "polka": "^0.5.2",

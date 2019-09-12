@@ -1,8 +1,9 @@
 import polka from 'polka';
 import Config from './config/config';
-import { Guid } from "guid-typescript";
+import {Guid} from "guid-typescript";
 import bodyParser from 'body-parser';
-import {checkPassword, hashPassword} from './security/security';
+import bcrypt from 'bcrypt';
+import session from 'express-session';
 
 import {db} from './config/db';
 import {User, Token} from './models/models';
@@ -18,17 +19,20 @@ function setApiHeaders(req, res, next) {
 }
 
 function logIncomingRequest(req, res, next) {
-    req.requestUUID = Guid.create();
+
+    if (!req.session.uuid) req.session.uuid = Guid.create();
+
     let date = new Date().toLocaleString();
-    console.log(`${date}: Incoming request:${req.requestUUID} for route: -> ${req.url} <- with method: ->${req.method} <-`);
+    console.log(`${date}: Incoming request:${req.session.uuid.value} for route: -> ${req.url} <- with method: ->${req.method} <-`);
     next();
 }
 
 function returnError(req, res, error) {
     console.log(`Endpoint ended with error`);
     console.log(error);
-    res.end(JSON.stringify({"error": true}));
+    res.end(JSON.stringify({"status": "error"}));
 }
+
 // </editor-fold>
 
 async function authenticateUser(req, res, next) {
@@ -46,34 +50,68 @@ function healthCheck(req, res) {
 }
 
 async function loginUser(req, res) {
-    console.log(req.body);
 
-    let hashedPassword = await hashPassword(req.body.password);
-
-    let data = await db<User>("user")
+    let user = await db<User>("user")
         .select("*")
         .where("user", req.body.user)
-        .where("password", hashedPassword)
         .first();
-    console.log(data);
 
-    res.end(JSON.stringify({"status": "ok"}));
+
+    if (bcrypt.compareSync(req.body.password, user.password)) {
+        res.end(JSON.stringify({"status": "ok"}));
+    }
+    else {
+        returnError(req, res, "Username or password incorrect");
+    }
+
 }
 
 async function registerUser(req, res) {
-    let hashedPassword = await hashPassword(req.body.password);
-    res.end(JSON.stringify({"status": "ok"}));
+
+    if (!req.body.user || !req.body.password) {
+        returnError(req, res, Error("Please provide valid user data"));
+    }
+    else {
+
+        let user: User = {
+            user: req.body.user,
+            password: bcrypt.hashSync(req.body.password, 10)
+        };
+
+        if (await canCreateUser(user)) {
+            let [userId] = await db<User>("user").insert(user);
+            res.end(JSON.stringify({"status": "ok", "userId": userId}));
+        } else {
+            returnError(req, res, "User with this name already exists");
+        }
+    }
 }
 
 
+function canCreateUser(user: User) {
+    return db<User>("user")
+        .select("*")
+        .where("user", user.user)
+        .first()
+        .then((userExists: User) => {
+            console.log(!userExists);
+            return !userExists;
+        });
+}
+
 
 polka()
-    .use(bodyParser.urlencoded({ extended: true }))
+    .use(session({
+        secret: Config.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: true
+    }))
+    .use(bodyParser.urlencoded({extended: true}))
     .use(setApiHeaders)
     .use(logIncomingRequest)
     .get('/', healthCheck)
     .post('/login', loginUser)
-    .post('/register', loginUser)
+    .post('/register', registerUser)
     .listen(Config.APP_PORT, err => {
         if (err) throw err;
         console.log(`> Running on localhost:${Config.APP_PORT}`);
