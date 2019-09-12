@@ -112,6 +112,37 @@ async function registerUser(req, res) {
     }
 }
 
+async function getAllUsers(req, res) {
+
+    if (req.auth) {
+        console.log("givin ja jusers");
+        let allUsers = await db<User>("user")
+            .select(["user.id", "user.user"]);
+        res.end(JSON.stringify({"status": "ok", "users": allUsers}));
+    }
+    else {
+        console.log("fok ju");
+        returnError(req, res, "Authentication needed");
+    }
+}
+
+async function getUserById(req, res) {
+
+    if (req.auth && req.params.id) {
+        console.log("givin ja jusers");
+        let userById = await db<User>("user")
+            .select(["user.id", "user.user"])
+            .where("id", req.params.id)
+            .first();
+        res.end(JSON.stringify({"status": "ok", "user": userById}));
+    }
+    else {
+        console.log("fok ju");
+        returnError(req, res, "Authentication needed");
+    }
+}
+
+
 function canCreateUser(user: User) {
     return db<User>("user")
         .select("*")
@@ -135,6 +166,8 @@ polka()
     .use(handleAuthentication)
     .use(logIncomingRequest)
     .get('/', healthCheck)
+    .get('/user', getAllUsers)
+    .get('/user/:id', getUserById)
     .post('/login', loginUser)
     .post('/register', registerUser)
     .listen(Config.APP_PORT, err => {
