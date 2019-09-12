@@ -1,0 +1,33 @@
+{
+  "name": "anketa-be",
+  "version": "1.0.0",
+  "description": "Anketa backe-end solution",
+  "main": "src/bin.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "anketa",
+    "be",
+    "backend",
+    "solution",
+    "poll"
+  ],
+  "author": "Underholding s.r.o.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@types/bcrypt": "^3.0.0",
+    "@types/bluebird": "^3.5.27",
+    "@types/node": "^12.7.5",
+    "@types/validator": "^10.11.3",
+    "body-parser": "^1.19.0",
+    "dotenv": "^8.1.0",
+    "guid-typescript": "^1.0.9",
+    "knex": "^0.19.4",
+    "polka": "^0.5.2",
+    "sqlite3": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/dotenv": "^6.1.1"
+  }
+}
