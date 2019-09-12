@@ -1,5 +1,5 @@
-export default interface Token  {
-    id: number,
+export default interface UserVote  {
+    id?: number,
     pollOption: number,
     user: number
 }

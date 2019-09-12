@@ -1,6 +1,6 @@
-export default interface Token  {
-    id: number,
+export default interface PollOption  {
+    id?: number,
     name: string,
-    description: string,
+    description?: string,
     poll: number
 }
