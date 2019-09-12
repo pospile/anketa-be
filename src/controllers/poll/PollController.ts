@@ -3,8 +3,6 @@ import {db} from "../../config/db";
 
 async function newPoll(req, res) {
 
-    console.log(req.body);
-
     if (req.auth) {
 
         if (!req.body.pollName) {
@@ -16,8 +14,6 @@ async function newPoll(req, res) {
         };
 
         let pollOptions = req.body.pollOptions.split(",");
-
-        console.log(pollOptions);
 
         let [pollId] = await db<Poll>("poll")
             .insert(poll);
@@ -76,16 +72,12 @@ async function voteOnPoll(req, res) {
             .where("id", req.params.id)
             .first();
 
-        console.log(pollOption);
-
 
         if (await canVote(pollOption.poll, req.session.user)) {
             let userVote: UserVote = {
                 pollOption: pollOption.id,
                 user: req.session.user
             };
-
-            console.log(userVote);
 
             let [vote] = await db<UserVote>("userVote")
                 .insert(userVote);
@@ -96,7 +88,6 @@ async function voteOnPoll(req, res) {
 
 
     } else {
-        console.log("fok ju");
         throw Error("Authentication needed");
     }
 }
@@ -117,7 +108,6 @@ function canVote(pollId: number, userId: number) {
         .where("user", userId)
         .first()
         .then((canVote) => {
-            console.log(!canVote);
             return !canVote;
         });
 }

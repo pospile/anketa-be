@@ -54,7 +54,7 @@ async function healthCheck(req, res) {
 
 
 polka({
-    onError: (err, req, res, next) => {
+    onError: (err, req, res) => {
         console.log(err);
         res.end(JSON.stringify({"status": "error"}));
     }
