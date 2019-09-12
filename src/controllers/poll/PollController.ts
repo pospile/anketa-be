@@ -3,8 +3,6 @@ import {db} from "../../config/db";
 
 async function newPoll(req, res) {
 
-    console.log(req.body);
-
     if (req.auth) {
 
         if (!req.body.pollName) {
@@ -16,8 +14,6 @@ async function newPoll(req, res) {
         };
 
         let pollOptions = req.body.pollOptions.split(",");
-
-        console.log(pollOptions);
 
         let [pollId] = await db<Poll>("poll")
             .insert(poll);
@@ -37,8 +33,8 @@ async function newPoll(req, res) {
 }
 
 async function getAllPolls(req, res) {
-    if (req.auth) {
 
+    if (req.auth) {
         let polls = await db<Poll>("poll")
             .select("*");
 
@@ -49,12 +45,8 @@ async function getAllPolls(req, res) {
 }
 
 async function getAllPollOptions(req, res) {
-    if (req.auth) {
 
-        /*
-        LEFT JOIN userVote ON userVote.pollOption = pollOption.id
-        GROUP BY pollOption.name
-         */
+    if (req.auth) {
         let pollOptions = await db("pollOption")
             .select(["pollOption.*", db.raw("count(userVote.id) as votes")])
             .leftJoin("userVote", "userVote.pollOption", "=", "pollOption.id")
@@ -76,16 +68,11 @@ async function voteOnPoll(req, res) {
             .where("id", req.params.id)
             .first();
 
-        console.log(pollOption);
-
-
         if (await canVote(pollOption.poll, req.session.user)) {
             let userVote: UserVote = {
                 pollOption: pollOption.id,
                 user: req.session.user
             };
-
-            console.log(userVote);
 
             let [vote] = await db<UserVote>("userVote")
                 .insert(userVote);
@@ -94,21 +81,13 @@ async function voteOnPoll(req, res) {
             throw Error("Already voted in this poll");
         }
 
-
     } else {
-        console.log("fok ju");
         throw Error("Authentication needed");
     }
 }
 
 function canVote(pollId: number, userId: number) {
 
-    /*
-        select * from poll
-        INNER JOIN pollOption on pollOption.poll = poll.id
-        INNER JOIN userVote on userVote.pollOption = pollOption.id
-        where poll.id = 4 AND userVote.user = 13
-    */
     return db("poll")
         .select("*")
         .innerJoin("pollOption", "pollOption.poll", "=", "poll.id")
@@ -117,7 +96,6 @@ function canVote(pollId: number, userId: number) {
         .where("user", userId)
         .first()
         .then((canVote) => {
-            console.log(!canVote);
             return !canVote;
         });
 }
