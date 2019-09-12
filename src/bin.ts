@@ -1,12 +1,13 @@
 import polka from 'polka';
-import Config from './config/config';
 import {Guid} from "guid-typescript";
 import bodyParser from 'body-parser';
 import bcrypt from 'bcrypt';
 import session from 'express-session';
 
+import Config from './config/config';
 import {db} from './config/db';
 import {User, Token} from './models/models';
+import tokenGenerator from './token/token';
 
 // <editor-fold desc="headers and other middlewares">
 function setApiHeaders(req, res, next) {
@@ -23,8 +24,26 @@ function logIncomingRequest(req, res, next) {
     if (!req.session.uuid) req.session.uuid = Guid.create();
 
     let date = new Date().toLocaleString();
-    console.log(`${date}: Incoming request:${req.session.uuid.value} for route: -> ${req.url} <- with method: ->${req.method} <-`);
+    console.log(`${date}: Incoming request:${req.session.uuid.value} for route: -> ${req.url} <- with method: -> ${req.method} <-`);
     next();
+}
+
+async function handleAuthentication(req, res, next) {
+    if (req.session.token && req.session.user) {
+        let token = await db<Token>("token")
+            .select("*")
+            .where("token", req.session.token)
+            .where("user", req.session.user)
+            .first();
+        if (token) {
+            req.auth = true;
+        }
+        next();
+    }
+    else {
+        req.auth = false;
+        next();
+    }
 }
 
 function returnError(req, res, error) {
@@ -34,15 +53,6 @@ function returnError(req, res, error) {
 }
 
 // </editor-fold>
-
-async function authenticateUser(req, res, next) {
-    /*
-    let token = req.headers['authorization'];
-    if (!token) return (res.statusCode=401,res.end('No token!'));
-    req.user = await Users.find(token); // <== fake
-    next(); // done, woot!
-     */
-}
 
 function healthCheck(req, res) {
     let healthCheckData = {"status": "ok", "serverTime": new Date().toLocaleString()};
@@ -56,9 +66,24 @@ async function loginUser(req, res) {
         .where("user", req.body.user)
         .first();
 
+    if (!user) {
+        returnError(req, res, "Username or password incorrect");
+        return;
+    }
 
     if (bcrypt.compareSync(req.body.password, user.password)) {
-        res.end(JSON.stringify({"status": "ok"}));
+        let token = tokenGenerator.generate();
+
+        let tokenObj : Token = {
+            token: token,
+            user: user.id
+        };
+
+        let [tokenId] = await db<Token>("token").insert(tokenObj);
+        req.session.token = token;
+        req.session.user = user.id;
+
+        res.end(JSON.stringify({"status": "ok", "token": token, "tokenId": tokenId}));
     }
     else {
         returnError(req, res, "Username or password incorrect");
@@ -87,7 +112,6 @@ async function registerUser(req, res) {
     }
 }
 
-
 function canCreateUser(user: User) {
     return db<User>("user")
         .select("*")
@@ -108,6 +132,7 @@ polka()
     }))
     .use(bodyParser.urlencoded({extended: true}))
     .use(setApiHeaders)
+    .use(handleAuthentication)
     .use(logIncomingRequest)
     .get('/', healthCheck)
     .post('/login', loginUser)

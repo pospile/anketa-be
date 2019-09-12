@@ -1,5 +1,5 @@
 export default interface Token  {
-    id: number,
+    id?: number,
     token: string,
     user: number
 }
